@@ -1,3 +1,9 @@
+"TEST: make function to convert "output" and "input" to "=" and "<"
+"TODO: function to close all window but NERDTree
+"TODO: Mark check or X wether the test case is correct or wrong
+"TODO: Set output window max height
+"TODO: function to move cursor/highlight wrong test case
+
 "Important Initializations
 let s:compiled_successfully = 0
 let s:output_window_open = 0
@@ -13,6 +19,10 @@ endif
 
 if !exists("g:ehelper_print_your_output")
 	let g:ehelper_print_your_output = 1
+endif
+
+if !exists("g:ehleper_max_print_lines")
+	let g:ehelper_max_print_lines = 10
 endif
 
 function! GotoWindow(nr)
@@ -54,7 +64,7 @@ function! ehelper#Compile()
 	w
 	let s:compiled_successfully = 0
 	if expand('%:e') == "cpp"
-		let compiler_message = system("g++ -std=c++11 " .expand("%") ." -o " .expand("%:r"))
+		let compiler_message = system("g++ -std=c++11 -D_DEBUG " .expand("%") ." -o " .expand("%:r"))
 	elseif expand('%:e') == "java"
 		let compiler_message = system("javac " .expand("%"))
 	endif
@@ -73,6 +83,8 @@ endfunction
 
 "Run Program
 function! ehelper#Run(...)
+	let s:std_err = tempname()
+	let s:std_out = tempname()
 	if !FocusProgramWindow()
 		echo "Cannot Find Program File"
 		return
@@ -81,7 +93,10 @@ function! ehelper#Run(...)
 	if a:0 == 0
 		execute "!" .run_command
 	else
+		"IMPROVE: make only 1 run then filter stdout and stderr at the same time
 		let s:program_output = system(run_command, a:1)
+		"TODO: get execution time from last line of output
+		" let s:execution_time = 
 	endif
 	return v:shell_error == 0
 endfunction
@@ -115,7 +130,7 @@ function! ehelper#ExecuteProgram()
 		call MakeTestCases()
 	else
 		call ehelper#Run()
-		call PrintOutput(s:program_output)
+		" call PrintOutput(s:program_output)
 	endif
 endfunction
 
@@ -143,9 +158,9 @@ function! MakeTestCases()
 
 	let i = 0
 	while i < n
-		if lines[i] == '<'
+		if lines[i] == '<' || lines[i] == 'input'
 			call RunTestCase()
-		elseif lines[i] == '='
+		elseif lines[i] == '=' || lines[i] == 'output'
 			let s:is_input = 0
 		else
 			call add((s:is_input ? s:input_arr : s:output_arr), lines[i])
@@ -172,36 +187,45 @@ function! RunTestCase()
 		return
 	endif
 
-	let s:message .= "[Test Case " .s:test_case_no ."]\n"
+	let message = ""
+	let input = ""
+	let output = ""
+	let answer = ""
 
-	let input_str = join(s:input_arr, "\n")
 
 	if g:ehelper_print_input
-		let s:message .= "Input:\n"
-		let s:message .= input_str
-		let s:message .= "\n"
+		let input .= "Input:\n"
+		let input .= LimitList(s:input_arr, g:ehelper_max_print_lines) ."\n"
 	endif
 
 	let s:is_input = 1
 
 	"TODO: check for run TLE
-	let success = ehelper#Run(input_str)
-	let s:message .= "Program Output:\n"
-	let s:message .= s:program_output
+	let success = ehelper#Run(join(s:input_arr, "\n"))
+	let output .= "Program Output:\n" .s:program_output
 	if !success
-		let s:message .= "\n[Runtime Error]"
+		let output .= "\n[Runtime Error]"
 	endif
 
+	let message .= "[Test Case " .s:test_case_no
 	"Trim Expected output
 	call filter(s:output_arr, "v:val != ''")
 	if !empty(s:output_arr)
 		if g:ehelper_print_expected_output
-			let s:message .= "Answer:\n"
-			let s:message .= join(s:output_arr, "\n") ."\n\n"
+			let answer .= "Answer:\n"
+			let answer .= join(s:output_arr, "\n") ."\n\n"
 		endif
 
-		let s:verdict_message .= "Test Case " .s:test_case_no .": " .(CompareOutput() ? "Correct" : "Wrong") ."\n"
+		let correct = CompareOutput()
+		if correct
+			let message .= ", " .s:execution_time
+			let message .= ", verdict: " .(correct ? "Correct" : "Wrong") ."]"
+		endif
+		let s:verdict_message .= "Test Case " .s:test_case_no .": "
+		let s:verdict_message .= (correct ? "Correct" : "Wrong") ."\n"
 	endif
+
+	let s:message .= message ."\n" .input ."\n" .output ."\n" .answer
 
 	let s:test_case_no += 1
 	call ResetInputOutputArr()
@@ -211,7 +235,9 @@ endfunction
 function! CompareOutput()
 	let program_output = split(s:program_output, '\n')
 	call filter(program_output, "v:val != ''")
-	if len(s:output_arr) > len(program_output)
+	"TODO: Filter program_output last line
+	"May also be "!="
+	if len(s:output_arr) > len(program_output) - 1
 		return 0
 	endif
 
@@ -224,6 +250,19 @@ function! CompareOutput()
 	endwhile
 	let s:correct_test_case += 1
 	return 1
+endfunction
+
+function! LimitList(original_list, limit)
+	let new_list = []
+	let i = 0
+	let l = len(a:original_list)
+	while i < min([l, a:limit])
+		call add(new_list, a:original_list[i])
+		let i += 1
+	endwhile
+	let new_list_str = join(new_list, "\n")
+	let new_list_str .= l > a:limit ? "\n.\n.\n.\n" : ""
+	return new_list_str
 endfunction
 
 "Output Window Manipulation
@@ -278,4 +317,12 @@ function! PrintOutput(message)
 	call OpenOutputWindow()
 	call ClearOutputWindow()
 	put!=a:message
+endfunction
+
+function! ToInput()
+	execute "normal! S<\<Esc>"
+endfunction
+
+function! ToOutput()
+	execute "normal! S=\<Esc>"
 endfunction
