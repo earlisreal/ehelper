@@ -2,7 +2,6 @@
 "TODO: Mark check or X wether the test case is correct or wrong
 "TODO: Set output window max height
 "TODO: function to move cursor/highlight wrong test case
-"TODO: execution time in java
 
 "Important Initializations
 let s:compiled_successfully = 0
@@ -51,6 +50,7 @@ endfunction
 
 "Compile File
 function! ehelper#Compile() 
+	"TODO: find program file on current directory
 	if !FocusProgramWindow()
 		echo "Cannot Find Program File"
 		return 0
@@ -62,11 +62,48 @@ function! ehelper#Compile()
 	endif
 
 	w
+
+	"TODO: if cpp if java
+	let source_code = readfile(expand("%"))
+	let i = 0
+	while i < len(source_code)
+		if source_code[i] =~ "main("
+			"Append timer
+			let j = i
+			while j < len(source_code) && match(source_code[i], "{") == -1
+				let j += 1
+			endwhile
+			call insert(source_code, GetTimeStarter(), j + 1)
+
+			endwhile
+		endif
+		let i += 1
+	endwhile
+	let par_count = 0
+	while i < len(source_code)
+		if match(source_code[i], "{") != -1
+			let par_count += 1
+		endif
+		if match(source_code[i], "}") != -1
+			if par_count > 0
+				let par_count -= 1
+			else
+				call insert(source_code, GetTimeEnder(), i)
+				endwhile
+			endif
+		endif
+
+		let i += 1
+	endwhile
+
+	"Compile source_code list
+	let source_file = tempname()
+	call writefile(sourc_code, source_file)
 	let s:compiled_successfully = 0
 	if expand('%:e') == "cpp"
-		let compiler_message = system("g++ -std=c++11 -D_DEBUG " .expand("%") ." -o " .expand("%:r"))
+		let compiler_message = system("g++ -std=c++11 -D_DEBUG " .source_file ." -o " .expand("%:r"))
 	elseif expand('%:e') == "java"
-		let compiler_message = system("javac " .expand("%"))
+		let compiler_message = system("javac " .source_file)
 	endif
 	if v:shell_error == 0
 		let compiler_message = "Compiled Successfully!"
@@ -81,6 +118,22 @@ function! ehelper#Compile()
 	return s:compiled_successfully
 endfunction
 
+function! GetTimeStarter()
+	if expand('%:e') == "java"
+		return 'long start = System.currentTimeMillis();'
+	elseif expand('%:e') == "cpp"
+		return 'int t_start = (int) clock();'
+	endif
+endf
+
+function! GetTimeEnder()
+	if expand('%:e') == "java"
+		return 'System.out.printf("\ntime: %d ms", endTime - startTime);'
+	elseif expand('%:e') == "cpp"
+		return 'fprintf(stderr, "time: %d ms", clock() - t_start);'
+	endif
+endf
+
 "Run Program
 function! ehelper#Run(...)
 	let s:std_err = tempname()
@@ -93,10 +146,11 @@ function! ehelper#Run(...)
 	if a:0 == 0
 		execute "!" .run_command
 	else
-		"IMPROVE: make only 1 run then filter stdout and stderr at the same time
 		let s:program_output = system(run_command, a:1)
 		let s:program_output_list = split(s:program_output, "\n")
+		" if match(s:program_output_list[-1], "time:") != -1
 		let s:execution_time = remove(s:program_output_list, -1)
+		" endif
 		let s:program_output = join(s:program_output_list, "\n")
 	endif
 	return v:shell_error == 0
@@ -175,7 +229,8 @@ function! MakeTestCases()
 		if s:test_case_no == s:correct_test_case
 			let s:verdict_message .= "[All Test Case Pass]"
 		else
-			let s:verdict_message .= "[" .s:correct_test_case ." out of " .s:test_case_no  ." Test Cases Pass" ."]"
+			let s:verdict_message .= "[" .s:correct_test_case ." out of "
+			let s:verdict_message .= s:test_case_no  ." Test Cases Pass" ."]"
 		endif
 	endif
 
@@ -192,7 +247,6 @@ function! RunTestCase()
 	let input = ""
 	let output = ""
 	let answer = ""
-
 
 	if g:ehelper_print_input
 		let input .= "Input:\n"
