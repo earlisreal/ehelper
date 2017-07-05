@@ -1,4 +1,3 @@
-"TEST: make function to convert "output" and "input" to "=" and "<"
 "TODO: function to close all window but NERDTree
 "TODO: Mark check or X wether the test case is correct or wrong
 "TODO: Set output window max height
@@ -96,8 +95,9 @@ function! ehelper#Run(...)
 	else
 		"IMPROVE: make only 1 run then filter stdout and stderr at the same time
 		let s:program_output = system(run_command, a:1)
-		"TODO: get execution time from last line of output
-		" let s:execution_time = 
+		let s:program_output_list = split(s:program_output, "\n")
+		let s:execution_time = remove(s:program_output_list, -1)
+		let s:program_output = join(s:program_output_list, "\n")
 	endif
 	return v:shell_error == 0
 endfunction
@@ -218,10 +218,8 @@ function! RunTestCase()
 		endif
 
 		let correct = CompareOutput()
-		if correct
-			let message .= ", " .s:execution_time
-			let message .= ", verdict: " .(correct ? "Correct" : "Wrong") ."]"
-		endif
+		let message .= ", " .s:execution_time
+		let message .= ", verdict: " .(correct ? "Correct" : "Wrong") ."]"
 		let s:verdict_message .= "Test Case " .s:test_case_no .": "
 		let s:verdict_message .= (correct ? "Correct" : "Wrong") ."\n"
 	endif
@@ -234,9 +232,8 @@ endfunction
 
 "Compare expected output and program output
 function! CompareOutput()
-	let program_output = split(s:program_output, '\n')
+	let program_output = s:program_output_list
 	call filter(program_output, "v:val != ''")
-	"TODO: Filter program_output last line
 	"May also be "!="
 	if len(s:output_arr) > len(program_output) - 1
 		return 0
