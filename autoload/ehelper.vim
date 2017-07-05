@@ -3,6 +3,7 @@
 "TODO: Mark check or X wether the test case is correct or wrong
 "TODO: Set output window max height
 "TODO: function to move cursor/highlight wrong test case
+"TODO: execution time in java
 
 "Important Initializations
 let s:compiled_successfully = 0
