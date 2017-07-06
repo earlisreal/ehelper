@@ -63,42 +63,32 @@ function! ehelper#Compile()
 
 	w
 
-	"TODO: if cpp if java
 	let source_code = readfile(expand("%"))
 	let i = 0
 	while i < len(source_code)
 		if source_code[i] =~ "main("
 			"Append timer
-			let j = i
-			while j < len(source_code) && match(source_code[i], "{") == -1
-				let j += 1
+			while i < len(source_code) && match(source_code[i], "{") == -1
+				let i += 1
 			endwhile
-			call insert(source_code, GetTimeStarter(), j + 1)
-
-			endwhile
+			let i += 1
+			call insert(source_code, GetTimeStarter(), i)
+			break
 		endif
 		let i += 1
 	endwhile
 	let par_count = 0
 	while i < len(source_code)
-		if match(source_code[i], "{") != -1
-			let par_count += 1
+		if match(source_code[i], "return 0;") != -1
+			call insert(source_code, GetTimeEnder(), i)
+			break
 		endif
-		if match(source_code[i], "}") != -1
-			if par_count > 0
-				let par_count -= 1
-			else
-				call insert(source_code, GetTimeEnder(), i)
-				endwhile
-			endif
-		endif
-
 		let i += 1
 	endwhile
 
 	"Compile source_code list
-	let source_file = tempname()
-	call writefile(sourc_code, source_file)
+	let source_file = tempname() .expand('%:e')
+	call writefile(source_code, source_file)
 	let s:compiled_successfully = 0
 	if expand('%:e') == "cpp"
 		let compiler_message = system("g++ -std=c++11 -D_DEBUG " .source_file ." -o " .expand("%:r"))
