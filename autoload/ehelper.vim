@@ -43,11 +43,6 @@ function! FocusProgramWindow()
 	return 0
 endfunction
 
-function! GetProgramFileName()
-	if filereadable("*.cpp")
-	endif
-endfunction
-
 "Compile File
 function! ehelper#Compile() 
 	"TODO: find program file on current directory
@@ -62,38 +57,11 @@ function! ehelper#Compile()
 	endif
 
 	w
-
-	let source_code = readfile(expand("%"))
-	let i = 0
-	while i < len(source_code)
-		if source_code[i] =~ "main("
-			"Append timer
-			while i < len(source_code) && match(source_code[i], "{") == -1
-				let i += 1
-			endwhile
-			let i += 1
-			call insert(source_code, GetTimeStarter(), i)
-			break
-		endif
-		let i += 1
-	endwhile
-	let par_count = 0
-	while i < len(source_code)
-		if match(source_code[i], "return 0;") != -1
-			call insert(source_code, GetTimeEnder(), i)
-			break
-		endif
-		let i += 1
-	endwhile
-
-	"Compile source_code list
-	let source_file = tempname() .expand('%:e')
-	call writefile(source_code, source_file)
 	let s:compiled_successfully = 0
 	if expand('%:e') == "cpp"
-		let compiler_message = system("g++ -std=c++11 -D_DEBUG " .source_file ." -o " .expand("%:r"))
+		let compiler_message = system("g++ -std=c++11 -D_DEBUG " .expand("%") ." -o " .expand("%:r"))
 	elseif expand('%:e') == "java"
-		let compiler_message = system("javac " .source_file)
+		let compiler_message = system("javac " .expand("%"))
 	endif
 	if v:shell_error == 0
 		let compiler_message = "Compiled Successfully!"
@@ -136,12 +104,15 @@ function! ehelper#Run(...)
 	if a:0 == 0
 		execute "!" .run_command
 	else
+		"Alternate for seconds
+		"let startTime = localtime()
+		let startTime = reltime()
 		let s:program_output = system(run_command, a:1)
-		let s:program_output_list = split(s:program_output, "\n")
-		" if match(s:program_output_list[-1], "time:") != -1
-		let s:execution_time = remove(s:program_output_list, -1)
-		" endif
-		let s:program_output = join(s:program_output_list, "\n")
+		let exec_time = round(reltimefloat(reltime(startTime)) * 1000)
+		"then - localtime() - startTime
+		let s:execution_time = float2nr(exec_time)
+
+		call PrintOutput("time: " .s:execution_time ." ms")
 	endif
 	return v:shell_error == 0
 endfunction
@@ -203,9 +174,9 @@ function! MakeTestCases()
 
 	let i = 0
 	while i < n
-		if lines[i] == '<' || lines[i] == 'input'
+		if lines[i] == '<' || match(lines[i], "/\cinput") != -1
 			call RunTestCase()
-		elseif lines[i] == '=' || lines[i] == 'output'
+		elseif lines[i] == '=' || match(lines[i], "/\coutput") != -1
 			let s:is_input = 0
 		else
 			call add((s:is_input ? s:input_arr : s:output_arr), lines[i])
@@ -262,7 +233,7 @@ function! RunTestCase()
 		endif
 
 		let correct = CompareOutput()
-		let message .= ", " .s:execution_time
+		let message .= ", time: " .s:execution_time ." ms"
 		let message .= ", verdict: " .(correct ? "Correct" : "Wrong") ."]"
 		let s:verdict_message .= "Test Case " .s:test_case_no .": "
 		let s:verdict_message .= (correct ? "Correct" : "Wrong") ."\n"
@@ -276,10 +247,10 @@ endfunction
 
 "Compare expected output and program output
 function! CompareOutput()
-	let program_output = s:program_output_list
+	let program_output = split(s:program_output, "\n")
 	call filter(program_output, "v:val != ''")
 	"May also be "!="
-	if len(s:output_arr) > len(program_output) - 1
+	if len(s:output_arr) > len(program_output)
 		return 0
 	endif
 
