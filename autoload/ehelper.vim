@@ -2,6 +2,8 @@
 "TODO: Mark check or X wether the test case is correct or wrong
 "TODO: Set output window max height
 "TODO: function to move cursor/highlight wrong test case
+"TODO: quickfix on compile errors
+"TODO: try async functions
 
 "Important Initializations
 let s:compiled_successfully = 0
@@ -174,9 +176,9 @@ function! MakeTestCases()
 
 	let i = 0
 	while i < n
-		if lines[i] == '<' || match(lines[i], "/\cinput") != -1
+		if match(lines[i], '\cinput') != -1
 			call RunTestCase()
-		elseif lines[i] == '=' || match(lines[i], "/\coutput") != -1
+		elseif match(lines[i], '\coutput') != -1
 			let s:is_input = 0
 		else
 			call add((s:is_input ? s:input_arr : s:output_arr), lines[i])
@@ -330,12 +332,4 @@ function! PrintOutput(message)
 	call OpenOutputWindow()
 	call ClearOutputWindow()
 	put!=a:message
-endfunction
-
-function! ToInput()
-	execute "normal! S<\<Esc>"
-endfunction
-
-function! ToOutput()
-	execute "normal! S=\<Esc>"
 endfunction
