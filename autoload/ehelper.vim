@@ -4,6 +4,8 @@
 "TODO: function to move cursor/highlight wrong test case
 "TODO: quickfix on compile errors
 "TODO: try async functions
+"I think appending the timer on source code before compiling is Okay.
+"TODO: Compile first the clean source code, if successful, Add the timer then compile again / ALTERNATE: use plugins such as ALE or Syntastic for error checking
 
 "Important Initializations
 let s:compiled_successfully = 0
