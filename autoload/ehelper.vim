@@ -1,16 +1,14 @@
-"BUG: Class name on Java - Solution: Change Class name of source code to temp
+"TODO: put all temp source codes on one folder
 "TODO: function to close all window but NERDTree
-"TODO: Mark check or X wether the test case is correct or wrong
-"TODO: Set output window max height
 "TODO: function to move cursor/highlight wrong test case
-"TODO: quickfix on compile errors
 "TODO: try async functions
-"I think appending the timer on source code before compiling is Okay.
-"TODO: Compile first the clean source code, if successful, Add the timer then compile again / ALTERNATE: use plugins such as ALE or Syntastic for error checking
 
 "Important Initializations
 let s:compiled_successfully = 0
-let s:output_window_open = 0
+
+if !exists("t:output_window_open")
+	let t:output_window_open = 0
+endif
 
 "Optional Configs
 if !exists("g:ehelper_print_input")
@@ -61,7 +59,6 @@ function! ehelper#Compile()
 		return s:compiled_successfully
 	endif
 
-	w
 	let source_file = GetSourceFileWithTimer()
 	let s:compiled_successfully = 0
 	if expand('%:e') == "cpp"
@@ -70,25 +67,29 @@ function! ehelper#Compile()
 		let compiler_message = system("javac " .source_file)
 	endif
 	if v:shell_error == 0
-		let compiler_message = "Compiled Successfully!"
 		let s:compiled_successfully =  1
 	endif
 
-	call PrintOutput(compiler_message)
 	if s:compiled_successfully ==  1
-		call FocusProgramWindow()
+		echo "Compiled Successfully!"
+	else
+		"use quickfix
+		cexpr compiler_message
+
+		" call PrintOutput(compiler_message)
 	endif
 
 	return s:compiled_successfully
 endfunction
 
 function! GetSourceFileWithTimer()
+	let s:temp_name = split(split(tempname(), '\')[-1], '\.')[0]
 	let source_code = readfile(expand("%"))
 	let i = 0
 	while i < len(source_code)
-		if source_code[i] =~ "class " .expand('%:r')
-			"Do the math: change the class name to temp name
-			"TODO: get tempname without the extension
+		if expand('%:e') == "java" && source_code[i] =~ "class " .expand('%:r')
+			let c_index = match(source_code[i], expand('%:r'))
+			let source_code[i] = strpart(source_code[i], 0, c_index) .s:temp_name ." {"
 		endif
 		if source_code[i] =~ "main("
 			"Append timer
@@ -101,24 +102,39 @@ function! GetSourceFileWithTimer()
 		endif
 		let i += 1
 	endwhile
+
 	let par_count = 0
 	while i < len(source_code)
+		"For CPP
 		if match(source_code[i], "return 0;") != -1
 			call insert(source_code, GetTimeEnder(), i)
 			break
 		endif
+
+		"For Java
+		if match(source_code[i], "{") != -1
+			let par_count += 1
+		endif
+		if match(source_code[i], "}") != -1
+			if par_count > 0
+				let par_count -= 1
+			else
+				call insert(source_code, GetTimeEnder(), i)
+				break
+			endif
+		endif
 		let i += 1
 	endwhile
 	"Compile source_code list
-	let source_file = tempname() ."." .expand('%:e')
+	let source_file = s:temp_name ."." .expand('%:e')
 	call writefile(source_code, source_file)
-	
+
 	return source_file
 endfunction
 
 function! GetTimeStarter()
 	if expand('%:e') == "java"
-		return 'long start = System.currentTimeMillis();'
+		return 'long startTime = System.nanoTime();'
 	elseif expand('%:e') == "cpp"
 		return 'int t_start = (int) clock();'
 	endif
@@ -126,9 +142,9 @@ endf
 
 function! GetTimeEnder()
 	if expand('%:e') == "java"
-		return 'System.out.printf("\n%d", endTime - startTime);'
+		return 'System.out.printf("\n%d", (System.nanoTime() - startTime) / 1000000);'
 	elseif expand('%:e') == "cpp"
-		return 'fprintf(stderr, "\n%d", clock() - t_start);'
+		return 'printf("\n%d", clock() - t_start);'
 	endif
 endf
 
@@ -289,7 +305,7 @@ endfunction
 function! CompareOutput()
 	let program_output = s:program_output_list
 	"May also be "!="
-	if len(s:answer_arr) > len(program_output) - 1
+	if len(s:answer_arr) > len(program_output)
 		return 0
 	endif
 
@@ -320,19 +336,19 @@ endfunction
 "Output Window Manipulation
 
 function! OpenOutputWindow()
-	if !bufexists("output_scratch")
+	if !bufexists("output_scratch") || !exists("t:output_window_open")
 		"Make Scratch Buffer for output
 		botright new output_scratch
 		resize 8
 		setlocal buftype=nofile bufhidden=hide noswapfile buftype=nowrite
 	else
-		if !g:output_window_open
+		if !t:output_window_open
 			botright sbuffer output_scratch
 			resize 8
 		endif
 	endif
 	call FocusOutputWindow()
-	let g:output_window_open = 1
+	let t:output_window_open = 1
 endfunction
 
 function! FocusOutputWindow()
@@ -349,11 +365,11 @@ function! CloseOutputWindow()
 		execute nr . "wincmd w"
 		hide
 	endif
-	let g:output_window_open = 0
+	let t:output_window_open = 0
 endfunction
 
 function! ehelper#ToggleOutputWindow()
-	if g:output_window_open
+	if t:output_window_open
 		call CloseOutputWindow()
 	else
 		call OpenOutputWindow()
