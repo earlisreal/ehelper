@@ -1,3 +1,4 @@
+"BUG: Class name on Java - Solution: Change Class name of source code to temp
 "TODO: function to close all window but NERDTree
 "TODO: Mark check or X wether the test case is correct or wrong
 "TODO: Set output window max height
@@ -61,11 +62,12 @@ function! ehelper#Compile()
 	endif
 
 	w
+	let source_file = GetSourceFileWithTimer()
 	let s:compiled_successfully = 0
 	if expand('%:e') == "cpp"
-		let compiler_message = system("g++ -std=c++11 -D_DEBUG " .expand("%") ." -o " .expand("%:r"))
+		let compiler_message = system("g++ -std=c++11 -D_DEBUG " .source_file ." -o " .expand("%:r"))
 	elseif expand('%:e') == "java"
-		let compiler_message = system("javac " .expand("%"))
+		let compiler_message = system("javac " .source_file)
 	endif
 	if v:shell_error == 0
 		let compiler_message = "Compiled Successfully!"
@@ -80,6 +82,40 @@ function! ehelper#Compile()
 	return s:compiled_successfully
 endfunction
 
+function! GetSourceFileWithTimer()
+	let source_code = readfile(expand("%"))
+	let i = 0
+	while i < len(source_code)
+		if source_code[i] =~ "class " .expand('%:r')
+			"Do the math: change the class name to temp name
+			"TODO: get tempname without the extension
+		endif
+		if source_code[i] =~ "main("
+			"Append timer
+			while i < len(source_code) && match(source_code[i], "{") == -1
+				let i += 1
+			endwhile
+			let i += 1
+			call insert(source_code, GetTimeStarter(), i)
+			break
+		endif
+		let i += 1
+	endwhile
+	let par_count = 0
+	while i < len(source_code)
+		if match(source_code[i], "return 0;") != -1
+			call insert(source_code, GetTimeEnder(), i)
+			break
+		endif
+		let i += 1
+	endwhile
+	"Compile source_code list
+	let source_file = tempname() ."." .expand('%:e')
+	call writefile(source_code, source_file)
+	
+	return source_file
+endfunction
+
 function! GetTimeStarter()
 	if expand('%:e') == "java"
 		return 'long start = System.currentTimeMillis();'
@@ -90,9 +126,9 @@ endf
 
 function! GetTimeEnder()
 	if expand('%:e') == "java"
-		return 'System.out.printf("\ntime: %d ms", endTime - startTime);'
+		return 'System.out.printf("\n%d", endTime - startTime);'
 	elseif expand('%:e') == "cpp"
-		return 'fprintf(stderr, "time: %d ms", clock() - t_start);'
+		return 'fprintf(stderr, "\n%d", clock() - t_start);'
 	endif
 endf
 
@@ -108,15 +144,14 @@ function! ehelper#Run(...)
 	if a:0 == 0
 		execute "!" .run_command
 	else
-		"Alternate for seconds
-		"let startTime = localtime()
-		let startTime = reltime()
 		let s:program_output = system(run_command, a:1)
-		let exec_time = round(reltimefloat(reltime(startTime)) * 1000)
-		"then - localtime() - startTime
-		let s:execution_time = float2nr(exec_time)
 
-		call PrintOutput("time: " .s:execution_time ." ms")
+		let s:program_output_list = split(s:program_output, "\n")
+		let s:execution_time = remove(s:program_output_list, -1)
+		"Trim Output
+		call filter(s:program_output_list, "v:val != ''")
+		let s:program_output = join(s:program_output_list, "\n")
+
 	endif
 	return v:shell_error == 0
 endfunction
@@ -167,7 +202,7 @@ endfunction
 
 function! ResetInputOutputArr()
 	let s:input_arr = []
-	let s:output_arr = []
+	let s:answer_arr = []
 endfunction
 
 function! MakeTestCases()
@@ -183,7 +218,7 @@ function! MakeTestCases()
 		elseif match(lines[i], '\coutput') != -1
 			let s:is_input = 0
 		else
-			call add((s:is_input ? s:input_arr : s:output_arr), lines[i])
+			call add((s:is_input ? s:input_arr : s:answer_arr), lines[i])
 		endif
 		let i = i + 1
 	endwhile
@@ -222,18 +257,18 @@ function! RunTestCase()
 
 	"TODO: check for run TLE
 	let success = ehelper#Run(join(s:input_arr, "\n"))
-	let output .= "Program Output:\n" .s:program_output
+	let output .= "Program Output:\n" .s:program_output ."\n"
 	if !success
 		let output .= "\n[Runtime Error]"
 	endif
 
 	let message .= "[Test Case " .s:test_case_no
-	"Trim Expected output
-	call filter(s:output_arr, "v:val != ''")
-	if !empty(s:output_arr)
+	"Trim Answer
+	call filter(s:answer_arr, "v:val != ''")
+	if !empty(s:answer_arr)
 		if g:ehelper_print_expected_output
 			let answer .= "Answer:\n"
-			let answer .= join(s:output_arr, "\n") ."\n\n"
+			let answer .= join(s:answer_arr, "\n") ."\n"
 		endif
 
 		let correct = CompareOutput()
@@ -244,6 +279,7 @@ function! RunTestCase()
 	endif
 
 	let s:message .= message ."\n" .input ."\n" .output ."\n" .answer
+	let s:message .= "------------------------------------------------------\n"
 
 	let s:test_case_no += 1
 	call ResetInputOutputArr()
@@ -251,16 +287,15 @@ endfunction
 
 "Compare expected output and program output
 function! CompareOutput()
-	let program_output = split(s:program_output, "\n")
-	call filter(program_output, "v:val != ''")
+	let program_output = s:program_output_list
 	"May also be "!="
-	if len(s:output_arr) > len(program_output)
+	if len(s:answer_arr) > len(program_output) - 1
 		return 0
 	endif
 
 	let i = 0
-	while i < len(s:output_arr)
-		if s:output_arr[i] != program_output[i]
+	while i < len(s:answer_arr)
+		if s:answer_arr[i] != program_output[i]
 			return 0
 		endif
 		let i += 1
