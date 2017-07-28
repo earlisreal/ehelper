@@ -4,7 +4,13 @@
 "TODO: try async functions
 
 "Important Initializations
-let s:compiled_successfully = 0
+if !exists("s:compiled_successfully")
+	let s:compiled_successfully = 0
+endif
+
+if !exists("s:temp_name")
+	let s:temp_name = TempName()
+endif
 
 if !exists("t:output_window_open")
 	let t:output_window_open = 0
@@ -29,6 +35,16 @@ endif
 
 function! GotoWindow(nr)
 	execute a:nr . "wincmd w"
+endfunction
+
+function! TempPath()
+	let tmp = system('echo %TEMP%')
+	return strpart(tmp, 0, len(tmp) - 2)
+endfunction
+
+function! TempName()
+	let temp = tempname()
+	return strpart(temp, 0, match(temp, ".tmp"))
 endfunction
 
 function! FocusProgramWindow()
@@ -156,11 +172,11 @@ function! ehelper#Run(...)
 		echo "Cannot Find Program File"
 		return
 	endif
-	let run_command = GetRunCommand()
+	let run_command = GetRunCommand(a:1)
 	if a:0 == 0
 		execute "!" .run_command
 	else
-		let s:program_output = system(run_command, a:1)
+		let s:program_output = system(run_command, a:2)
 
 		let s:program_output_list = split(s:program_output, "\n")
 		let s:execution_time = remove(s:program_output_list, -1)
@@ -172,12 +188,12 @@ function! ehelper#Run(...)
 	return v:shell_error == 0
 endfunction
 
-function! GetRunCommand()
+function! GetRunCommand(filename)
 	let extension = expand('%:e')
 	if extension == "cpp"
-		return expand('%:r') .".exe"
+		return a:filename .".exe"
 	elseif extension == "java"
-		return "java " .expand('%:r')
+		return "java " .a:filename
 	endif
 endfunction
 
@@ -272,7 +288,7 @@ function! RunTestCase()
 	let s:is_input = 1
 
 	"TODO: check for run TLE
-	let success = ehelper#Run(join(s:input_arr, "\n"))
+	let success = ehelper#Run(s:filename, join(s:input_arr, "\n"))
 	let output .= "Program Output:\n" .s:program_output ."\n"
 	if !success
 		let output .= "\n[Runtime Error]"
