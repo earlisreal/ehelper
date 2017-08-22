@@ -75,6 +75,7 @@ function! ehelper#Compile()
 		return s:compiled_successfully
 	endif
 
+	"TODO: Do now! Remove temp source code
 	let source_file = GetSourceFileWithTimer()
 	let s:compiled_successfully = 0
 	if expand('%:e') == "cpp"
@@ -172,6 +173,7 @@ function! ehelper#Run(...)
 		echo "Cannot Find Program File"
 		return
 	endif
+	"BUG: wtf did you do here earl
 	let run_command = GetRunCommand(a:1)
 	if a:0 == 0
 		execute "!" .run_command
@@ -189,9 +191,10 @@ function! ehelper#Run(...)
 endfunction
 
 function! GetRunCommand(filename)
+	"TODO: Make this based on external file, the file name will be the extension
 	let extension = expand('%:e')
 	if extension == "cpp"
-		return a:filename .".exe"
+		return expand("%:r") .".exe"
 	elseif extension == "java"
 		return "java " .a:filename
 	endif
@@ -288,7 +291,7 @@ function! RunTestCase()
 	let s:is_input = 1
 
 	"TODO: check for run TLE
-	let success = ehelper#Run(s:filename, join(s:input_arr, "\n"))
+	let success = ehelper#Run(s:temp_name, join(s:input_arr, "\n"))
 	let output .= "Program Output:\n" .s:program_output ."\n"
 	if !success
 		let output .= "\n[Runtime Error]"
