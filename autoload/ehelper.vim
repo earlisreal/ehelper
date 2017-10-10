@@ -2,15 +2,15 @@
 "TODO: function to close all window but NERDTree
 "TODO: function to move cursor/highlight wrong test case
 "TODO: try async functions
+"TODO: put extension based function to files
+
+"New function:
+"TODO:	delete modified source file after compiling
+"		Store output (.exe, .class) file to the working folder, think how to save the temp file name	
 
 "Important Initializations
-if !exists("s:compiled_successfully")
-	let s:compiled_successfully = 0
-endif
 
-if !exists("s:temp_name")
-	let s:temp_name = TempName()
-endif
+" BUG: Previous program replacing current buffer when Compile has errors. The Temp Program remain on the dir and the original has the timer (The Compilations doesnt finish the function when there is an error).
 
 if !exists("t:output_window_open")
 	let t:output_window_open = 0
@@ -37,16 +37,6 @@ function! GotoWindow(nr)
 	execute a:nr . "wincmd w"
 endfunction
 
-function! TempPath()
-	let tmp = system('echo %TEMP%')
-	return strpart(tmp, 0, len(tmp) - 2)
-endfunction
-
-function! TempName()
-	let temp = tempname()
-	return strpart(temp, 0, match(temp, ".tmp"))
-endfunction
-
 function! FocusProgramWindow()
 	let nr = bufwinnr("*.cpp")
 	if nr != -1
@@ -62,52 +52,49 @@ function! FocusProgramWindow()
 	return 0
 endfunction
 
-"Compile File
-function! ehelper#Compile() 
-	"TODO: find program file on current directory
+function! ehelper#Compile()
 	if !FocusProgramWindow()
 		echo "Cannot Find Program File"
 		return 0
 	endif
+	w
+	return CleanCompile()
+endfunction
 
-	if !&modified && exists(s:compiled_successfully)
-		echo "No Changes"
-		return s:compiled_successfully
-	endif
-
-	"TODO: Do now! Remove temp source code
+function! ehelper#CompileWithTimer()
 	let source_file = GetSourceFileWithTimer()
+
+endfunction
+
+"Compile File
+function! CompileFile(file_name) 
 	let s:compiled_successfully = 0
 	if expand('%:e') == "cpp"
-		let compiler_message = system("g++ -std=c++11 -D_DEBUG " .source_file ." -o " .expand("%:r"))
+		let compiler_message = system("g++ -std=c++11 -D_DEBUG " .a:file_name ." -o " .expand("%:r"))
 	elseif expand('%:e') == "java"
-		let compiler_message = system("javac " .source_file)
+		let compiler_message = system("javac " .a:file_name)
 	endif
+	"TODO: delete source_file after compiling
 	if v:shell_error == 0
 		let s:compiled_successfully =  1
 	endif
 
 	if s:compiled_successfully ==  1
 		echo "Compiled Successfully!"
+		cclose
 	else
 		"use quickfix
 		cexpr compiler_message
-
 		" call PrintOutput(compiler_message)
 	endif
 
 	return s:compiled_successfully
 endfunction
 
-function! GetSourceFileWithTimer()
-	let s:temp_name = split(split(tempname(), '\')[-1], '\.')[0]
-	let source_code = readfile(expand("%"))
+function! WriteSourceFileWithTimer(file_name)
+	let source_code = readfile(a:file_name)
 	let i = 0
 	while i < len(source_code)
-		if expand('%:e') == "java" && source_code[i] =~ "class " .expand('%:r')
-			let c_index = match(source_code[i], expand('%:r'))
-			let source_code[i] = strpart(source_code[i], 0, c_index) .s:temp_name ." {"
-		endif
 		if source_code[i] =~ "main("
 			"Append timer
 			while i < len(source_code) && match(source_code[i], "{") == -1
@@ -143,10 +130,7 @@ function! GetSourceFileWithTimer()
 		let i += 1
 	endwhile
 	"Compile source_code list
-	let source_file = s:temp_name ."." .expand('%:e')
-	call writefile(source_code, source_file)
-
-	return source_file
+	call writefile(source_code, expand("%"))
 endfunction
 
 function! GetTimeStarter()
@@ -167,18 +151,15 @@ endf
 
 "Run Program
 function! ehelper#Run(...)
-	let s:std_err = tempname()
-	let s:std_out = tempname()
 	if !FocusProgramWindow()
 		echo "Cannot Find Program File"
 		return
 	endif
-	"BUG: wtf did you do here earl
-	let run_command = GetRunCommand(a:1)
+	let run_command = GetRunCommand()
 	if a:0 == 0
 		execute "!" .run_command
 	else
-		let s:program_output = system(run_command, a:2)
+		let s:program_output = system(run_command, a:1)
 
 		let s:program_output_list = split(s:program_output, "\n")
 		let s:execution_time = remove(s:program_output_list, -1)
@@ -190,13 +171,12 @@ function! ehelper#Run(...)
 	return v:shell_error == 0
 endfunction
 
-function! GetRunCommand(filename)
-	"TODO: Make this based on external file, the file name will be the extension
+function! GetRunCommand()
 	let extension = expand('%:e')
 	if extension == "cpp"
-		return expand("%:r") .".exe"
+		return expand('%:r') .".exe"
 	elseif extension == "java"
-		return "java " .a:filename
+		return "java " .expand('%:r')
 	endif
 endfunction
 
@@ -291,10 +271,10 @@ function! RunTestCase()
 	let s:is_input = 1
 
 	"TODO: check for run TLE
-	let success = ehelper#Run(s:temp_name, join(s:input_arr, "\n"))
+	let success = ehelper#Run(join(s:input_arr, "\n"))
 	let output .= "Program Output:\n" .s:program_output ."\n"
 	if !success
-		let output .= "\n[Runtime Error]"
+		let output = "Program Output:\n[Runtime Error]\n"
 	endif
 
 	let message .= "[Test Case " .s:test_case_no
@@ -330,7 +310,7 @@ function! CompareOutput()
 
 	let i = 0
 	while i < len(s:answer_arr)
-		if s:answer_arr[i] != program_output[i]
+		if Strip(s:answer_arr[i]) != Strip(program_output[i])
 			return 0
 		endif
 		let i += 1
@@ -355,40 +335,32 @@ endfunction
 "Output Window Manipulation
 
 function! OpenOutputWindow()
-	if !bufexists("output_scratch") || !exists("t:output_window_open")
+	if !FocusOutputWindow()
 		"Make Scratch Buffer for output
 		botright new output_scratch
 		resize 8
 		setlocal buftype=nofile bufhidden=hide noswapfile buftype=nowrite
-	else
-		if !t:output_window_open
-			botright sbuffer output_scratch
-			resize 8
-		endif
 	endif
-	call FocusOutputWindow()
-	let t:output_window_open = 1
 endfunction
 
 function! FocusOutputWindow()
 	let nr = bufwinnr("output_scratch")
 	if nr != -1
 		execute nr . "wincmd w"
+		return 1
 	endif
+	return 0
 endfunction
 
 function! CloseOutputWindow()
-	let nr = bufwinnr("output_scratch")
-	if nr != -1
+	if FocusOutputWindow()
 		"Hide Output window if Already Open
-		execute nr . "wincmd w"
 		hide
 	endif
-	let t:output_window_open = 0
 endfunction
 
 function! ehelper#ToggleOutputWindow()
-	if t:output_window_open
+	if FocusOutputWindow()
 		call CloseOutputWindow()
 	else
 		call OpenOutputWindow()
@@ -404,4 +376,23 @@ function! PrintOutput(message)
 	call OpenOutputWindow()
 	call ClearOutputWindow()
 	put!=a:message
+endfunction
+
+function! CleanCompile()
+	let file_name = expand("%")
+	let temp_file = "Temp_" .expand("%")
+
+	call rename(file_name, temp_file)
+
+	call WriteSourceFileWithTimer(temp_file)
+
+	let result = CompileFile(file_name)
+
+	call rename(temp_file, file_name)
+
+	return result
+endfunction
+
+function! Strip(str)
+    return substitute(a:str, '^\s*\(.\{-}\)\s*$', '\1', '')
 endfunction
