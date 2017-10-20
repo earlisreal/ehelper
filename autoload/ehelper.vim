@@ -1,16 +1,13 @@
-"TODO: put all temp source codes on one folder
 "TODO: function to close all window but NERDTree
 "TODO: function to move cursor/highlight wrong test case
 "TODO: try async functions
 "TODO: put extension based function to files
 
 "New function:
-"TODO:	delete modified source file after compiling
 "		Store output (.exe, .class) file to the working folder, think how to save the temp file name	
 
-"Important Initializations
 
-" BUG: Previous program replacing current buffer when Compile has errors. The Temp Program remain on the dir and the original has the timer (The Compilations doesnt finish the function when there is an error).
+"Important Initializations
 
 if !exists("t:output_window_open")
 	let t:output_window_open = 0
@@ -58,7 +55,18 @@ function! ehelper#Compile()
 		return 0
 	endif
 	w
-	return CleanCompile()
+	call CleanCompile()
+
+
+	if v:shell_error == 0
+		echo "Compiled Successfully!"
+		cclose
+	else
+		"use quickfix
+		" BUG: Replacing current buffer when there is an error on compiling
+		" cexpr b:compiler_message
+		call PrintOutput(b:compiler_message)
+	endif
 endfunction
 
 function! ehelper#CompileWithTimer()
@@ -68,27 +76,11 @@ endfunction
 
 "Compile File
 function! CompileFile(file_name) 
-	let s:compiled_successfully = 0
 	if expand('%:e') == "cpp"
-		let compiler_message = system("g++ -std=c++11 -D_DEBUG " .a:file_name ." -o " .expand("%:r"))
-	elseif expand('%:e') == "java"
-		let compiler_message = system("javac " .a:file_name)
+		let b:compiler_message = system("g++ -std=c++11 -D_DEBUG " .a:file_name ." -o " .expand("%:r"))
+elseif expand('%:e') == "java"
+		let b:compiler_message = system("javac " .a:file_name)
 	endif
-	"TODO: delete source_file after compiling
-	if v:shell_error == 0
-		let s:compiled_successfully =  1
-	endif
-
-	if s:compiled_successfully ==  1
-		echo "Compiled Successfully!"
-		cclose
-	else
-		"use quickfix
-		cexpr compiler_message
-		" call PrintOutput(compiler_message)
-	endif
-
-	return s:compiled_successfully
 endfunction
 
 function! WriteSourceFileWithTimer(file_name)
@@ -182,14 +174,16 @@ endfunction
 
 "Compile and Run Test Cases
 function! ehelper#CompileRunTestCases()
-	if ehelper#Compile()
+	call ehelper#Compile()
+	if v:shell_error == 0
 		call ehelper#ExecuteProgram()
 	endif
 endfunction
 
 "Compile and Run
 function! ehelper#CompileRun()
-	if ehelper#Compile()
+	call ehelper#Compile()
+	if v:shell_error == 0
 		call ehelper#Run()
 	endif
 endfunction
@@ -305,12 +299,16 @@ function! CompareOutput()
 	let program_output = s:program_output_list
 	"May also be "!="
 	if len(s:answer_arr) > len(program_output)
+		echo s:answer_arr
+		echo program_output
+		echo "Length not matched"
 		return 0
 	endif
 
 	let i = 0
 	while i < len(s:answer_arr)
 		if Strip(s:answer_arr[i]) != Strip(program_output[i])
+			echo "Line not matched"
 			return 0
 		endif
 		let i += 1
@@ -386,11 +384,9 @@ function! CleanCompile()
 
 	call WriteSourceFileWithTimer(temp_file)
 
-	let result = CompileFile(file_name)
+	call CompileFile(file_name)
 
 	call rename(temp_file, file_name)
-
-	return result
 endfunction
 
 function! Strip(str)
