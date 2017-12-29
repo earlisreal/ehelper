@@ -153,11 +153,14 @@ function! ehelper#Run(...)
 	else
 		let s:program_output = system(run_command, a:1)
 
-		let s:program_output_list = split(s:program_output, "\n")
-		let s:execution_time = remove(s:program_output_list, -1)
-		"Trim Output
-		call filter(s:program_output_list, "v:val != ''")
-		let s:program_output = join(s:program_output_list, "\n")
+		if v:shell_error == 0
+			let s:program_output_list = split(s:program_output, "\n")
+			let s:execution_time = remove(s:program_output_list, -1)
+			"Trim Output
+			call filter(s:program_output_list, "v:val != ''")
+			let s:program_output = join(s:program_output_list, "\n")
+
+		endif
 
 	endif
 	return v:shell_error == 0
@@ -264,11 +267,16 @@ function! RunTestCase()
 
 	let s:is_input = 1
 
-	"TODO: check for run TLE
 	let success = ehelper#Run(join(s:input_arr, "\n"))
 	let output .= "Program Output:\n" .s:program_output ."\n"
 	if !success
 		let output = "Program Output:\n[Runtime Error]\n"
+		let s:execution_time = "-1"
+	endif
+
+	" Check for run TLE if time > 5ms
+	if s:execution_time > 5000
+		let output = "Program Output:\n[Time Limit Exceeded]\n"
 	endif
 
 	let message .= "[Test Case " .s:test_case_no
@@ -282,10 +290,11 @@ function! RunTestCase()
 
 		let correct = CompareOutput()
 		let message .= ", time: " .s:execution_time ." ms"
-		let message .= ", verdict: " .(correct ? "Correct" : "Wrong") ."]"
+		let message .= ", verdict: " .(correct ? "Correct" : "Wrong")
 		let s:verdict_message .= "Test Case " .s:test_case_no .": "
 		let s:verdict_message .= (correct ? "Correct" : "Wrong") ."\n"
 	endif
+	let message .= "]"
 
 	let s:message .= message ."\n" .input ."\n" .output ."\n" .answer
 	let s:message .= "------------------------------------------------------\n"
