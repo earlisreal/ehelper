@@ -59,8 +59,10 @@ function! ehelper#Compile()
 
 
 	if v:shell_error == 0
-		echo "Compiled Successfully!"
-		cclose
+		" echo "Compiled Successfully!"
+		call ClearOutputWindow()
+		call CloseOutputWindow()
+		" cclose
 	else
 		"use quickfix
 		" BUG: Replacing current buffer when there is an error on compiling
@@ -376,7 +378,9 @@ endfunction
 
 function! ClearOutputWindow()
 	"Assume that current buffer is the output
-	normal! ggVGd
+	if FocusOutputWindow()
+		normal! ggVGd
+	endif
 endfunction
 
 function! PrintOutput(message)

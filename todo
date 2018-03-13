@@ -1,0 +1,6 @@
+-Output Compiled Successfully to console instead of logging
+-Add ms to print timer (java and c++), then remove it on the print on vim
+"TODO: function to close all window but NERDTree
+"TODO: function to move cursor/highlight wrong test case
+"TODO: put extension based function to files
+
