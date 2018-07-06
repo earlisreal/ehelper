@@ -141,6 +141,8 @@ function! GetTimeEnder()
 	elseif expand('%:e') == "cpp"
 		return 'printf("\n%d", clock() - t_start);'
 	endif
+	" TODO: write ms if Run command only not RunTestCase
+
 endf
 
 "Run Program
