@@ -1,11 +1,7 @@
 "TODO: function to close all window but NERDTree
 "TODO: function to move cursor/highlight wrong test case
-"TODO: try async functions
+"TODO: try async functions - For compiling
 "TODO: put extension based function to files
-
-"New function:
-"		Store output (.exe, .class) file to the working folder, think how to save the temp file name	
-
 
 "Important Initializations
 
@@ -59,14 +55,10 @@ function! ehelper#Compile()
 
 
 	if v:shell_error == 0
-		" echo "Compiled Successfully!"
+		echo "Compiled Successfully!"
 		call ClearOutputWindow()
 		call CloseOutputWindow()
-		" cclose
 	else
-		"use quickfix
-		" BUG: Replacing current buffer when there is an error on compiling
-		" cexpr b:compiler_message
 		call PrintOutput(b:compiler_message)
 	endif
 endfunction
@@ -173,7 +165,7 @@ endfunction
 function! GetRunCommand()
 	let extension = expand('%:e')
 	if extension == "cpp"
-		return expand('%:r') .".exe"
+		return expand('%:p:h') ."/" .expand('%:r')
 	elseif extension == "java"
 		return "java " .expand('%:r')
 	endif
@@ -395,12 +387,16 @@ function! CleanCompile()
 	let file_name = expand("%")
 	let temp_file = "Temp_" .expand("%")
 
+	" Store the original file to temp file
 	call rename(file_name, temp_file)
 
+	" Write new Source Code with timer to the temp file
 	call WriteSourceFileWithTimer(temp_file)
 
+	" Compile the file with timer
 	call CompileFile(file_name)
 
+	" Rename the Original file to its original name, this will overwrite the temp file
 	call rename(temp_file, file_name)
 endfunction
 
