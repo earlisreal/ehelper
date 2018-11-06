@@ -79,6 +79,10 @@ endfunction
 
 function! WriteSourceFileWithTimer(file_name)
 	let source_code = readfile(a:file_name)
+	" Include ctime to use the cloc() in c++
+	if expand("%:e") == "cpp"
+		call insert(source_code, "#include <ctime>", 0)
+	endif
 	let i = 0
 	while i < len(source_code)
 		if source_code[i] =~ "main("
@@ -131,7 +135,7 @@ function! GetTimeEnder()
 	if expand('%:e') == "java"
 		return 'System.out.printf("\n%d", (System.nanoTime() - startTime) / 1000000);'
 	elseif expand('%:e') == "cpp"
-		return 'printf("\n%d", clock() - t_start);'
+		return 'printf("\n%lld", clock() - t_start);'
 	endif
 	" TODO: write ms if Run command only not RunTestCase
 
@@ -165,7 +169,7 @@ endfunction
 function! GetRunCommand()
 	let extension = expand('%:e')
 	if extension == "cpp"
-		return expand('%:p:h') ."/" .expand('%:r')
+		return "\"" .expand('%:p:h') ."/" .expand('%:r') ."\""
 	elseif extension == "java"
 		return "java " .expand('%:r')
 	endif
