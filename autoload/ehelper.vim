@@ -26,6 +26,14 @@ if !exists("g:ehleper_max_print_lines")
 	let g:ehelper_max_print_lines = 10
 endif
 
+if !exists("g:allow_time_limit")
+	let g:allow_time_limit = 0
+endif
+
+if !exists("g:executable_path")
+	let g:executable_path = ""
+endif
+
 function! GotoWindow(nr)
 	execute a:nr . "wincmd w"
 endfunction
@@ -169,9 +177,17 @@ endfunction
 function! GetRunCommand()
 	let extension = expand('%:e')
 	if extension == "cpp"
-		return "\"" .expand('%:p:h') ."/" .expand('%:r') ."\""
+		if g:executable_path != ""
+			return "\"" .g:executable_path .expand('%:r') .".\""
+		else
+			return "\"" .expand('%:p:h') ."/" .expand('%:r') ."\""
+		endif
 	elseif extension == "java"
-		return "java " .expand('%:r')
+		if g:executable_path != ""
+			return "\"" .g:executable_path .expand('%:r') .".\""
+		else
+			return "java " .expand('%:r')
+		endif
 	endif
 endfunction
 
@@ -275,7 +291,7 @@ function! RunTestCase()
 	endif
 
 	" Check for run TLE if time > 5ms
-	if s:execution_time > 5000
+	if g:allow_time_limit && s:execution_time > 5000
 		let output = "Program Output:\n[Time Limit Exceeded]\n"
 	endif
 
@@ -316,9 +332,11 @@ function! CompareOutput()
 
 	let i = 0
 	while i < len(s:answer_arr)
-		if Strip(s:answer_arr[i]) != Strip(program_output[i])
-			echo "Line not matched"
-			return 0
+		if Strip(s:answer_arr[i]) != "earl-skip-earl"
+			if Strip(s:answer_arr[i]) != Strip(program_output[i])
+				echo "Line not matched"
+				return 0
+			endif
 		endif
 		let i += 1
 	endwhile
