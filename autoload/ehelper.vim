@@ -1,4 +1,3 @@
-"TODO: function to close all window but NERDTree
 "TODO: function to move cursor/highlight wrong test case
 "TODO: try async functions - For compiling
 "TODO: put extension based function to files
@@ -53,13 +52,13 @@ function! FocusProgramWindow()
 	return 0
 endfunction
 
-function! ehelper#Compile()
+function! ehelper#Compile(withTc)
 	if !FocusProgramWindow()
 		echo "Cannot Find Program File"
 		return 0
 	endif
 	w
-	call CleanCompile()
+	call CleanCompile(a:withTc)
 
 
 	if v:shell_error == 0
@@ -85,7 +84,7 @@ elseif expand('%:e') == "java"
 	endif
 endfunction
 
-function! WriteSourceFileWithTimer(file_name)
+function! WriteSourceFileWithTimer(file_name, withTc)
 	let source_code = readfile(a:file_name)
 	" Include ctime to use the cloc() in c++
 	if expand("%:e") == "cpp"
@@ -109,7 +108,7 @@ function! WriteSourceFileWithTimer(file_name)
 	while i < len(source_code)
 		"For CPP
 		if match(source_code[i], "return 0;") != -1
-			call insert(source_code, GetTimeEnder(), i)
+			call insert(source_code, GetTimeEnder(a:withTc), i)
 			break
 		endif
 
@@ -121,7 +120,7 @@ function! WriteSourceFileWithTimer(file_name)
 			if par_count > 0
 				let par_count -= 1
 			else
-				call insert(source_code, GetTimeEnder(), i)
+				call insert(source_code, GetTimeEnder(a:withTc), i)
 				break
 			endif
 		endif
@@ -139,14 +138,14 @@ function! GetTimeStarter()
 	endif
 endf
 
-function! GetTimeEnder()
+function! GetTimeEnder(withTc)
 	if expand('%:e') == "java"
-		return 'System.out.printf("\n%d", (System.nanoTime() - startTime) / 1000000);'
+		if (a:withTc)
+			return 'System.out.printf("\n%d' .(a:withTc ? '' : 'ms\n') .'", (System.nanoTime() - startTime) / 1000000);'
+		endif
 	elseif expand('%:e') == "cpp"
-		return 'printf("\n%lld", clock() - t_start);'
+		return 'printf("\n%lld' .(a:withTc ? '' : 'ms\n') .'", clock() - t_start);'
 	endif
-	" TODO: write ms if Run command only not RunTestCase
-
 endf
 
 "Run Program
@@ -193,7 +192,7 @@ endfunction
 
 "Compile and Run Test Cases
 function! ehelper#CompileRunTestCases()
-	call ehelper#Compile()
+	call ehelper#Compile(1)
 	if v:shell_error == 0
 		call ehelper#ExecuteProgram()
 	endif
@@ -201,7 +200,7 @@ endfunction
 
 "Compile and Run
 function! ehelper#CompileRun()
-	call ehelper#Compile()
+	call ehelper#Compile(0)
 	if v:shell_error == 0
 		call ehelper#Run()
 	endif
@@ -298,6 +297,7 @@ function! RunTestCase()
 	let message .= "[Test Case " .s:test_case_no
 	"Trim Answer
 	call filter(s:answer_arr, "v:val != ''")
+	let message .= ", time: " .s:execution_time ." ms"
 	if !empty(s:answer_arr)
 		if g:ehelper_print_expected_output
 			let answer .= "Answer:\n"
@@ -305,7 +305,6 @@ function! RunTestCase()
 		endif
 
 		let correct = CompareOutput()
-		let message .= ", time: " .s:execution_time ." ms"
 		let message .= ", verdict: " .(correct ? "Correct" : "Wrong")
 		let s:verdict_message .= "Test Case " .s:test_case_no .": "
 		let s:verdict_message .= (correct ? "Correct" : "Wrong") ."\n"
@@ -405,7 +404,7 @@ function! PrintOutput(message)
 	put!=a:message
 endfunction
 
-function! CleanCompile()
+function! CleanCompile(withTc)
 	let file_name = expand("%")
 	let temp_file = "Temp_" .expand("%")
 
@@ -413,7 +412,7 @@ function! CleanCompile()
 	call rename(file_name, temp_file)
 
 	" Write new Source Code with timer to the temp file
-	call WriteSourceFileWithTimer(temp_file)
+	call WriteSourceFileWithTimer(temp_file, a:withTc)
 
 	" Compile the file with timer
 	call CompileFile(file_name)

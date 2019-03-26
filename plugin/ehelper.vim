@@ -1,5 +1,5 @@
 command! EhelperToggleOutput silent call ehelper#ToggleOutputWindow()
-command! EhelperCompile call ehelper#Compile()
+command! EhelperCompile call ehelper#Compile(0)
 command! EhelperCompileRun call ehelper#CompileRun()
 command! EhelperCompileRunTestCases silent call ehelper#CompileRunTestCases()
 command! EhelperRun call ehelper#Run()
