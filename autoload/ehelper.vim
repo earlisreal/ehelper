@@ -78,8 +78,12 @@ endfunction
 "Compile File
 function! CompileFile(file_name) 
 	if expand('%:e') == "cpp"
-		let b:compiler_message = system("g++ -std=c++11 -D_DEBUG " .a:file_name ." -o " .expand("%:r"))
-elseif expand('%:e') == "java"
+		if g:executable_path == ""
+			let b:compiler_message = system("g++ -std=c++11 -D_DEBUG " .a:file_name ." -o " .expand("%:r"))
+		else
+			let b:compiler_message = system("g++ -std=c++11 -D_DEBUG " .a:file_name ." -o " .g:executable_path .expand("%:r"))
+		endif
+	elseif expand('%:e') == "java"
 		let b:compiler_message = system("javac " .a:file_name)
 	endif
 endfunction
@@ -177,13 +181,13 @@ function! GetRunCommand()
 	let extension = expand('%:e')
 	if extension == "cpp"
 		if g:executable_path != ""
-			return "\"" .g:executable_path .expand('%:r') .".\""
+			return "\"" .g:executable_path .expand('%:r') ."\""
 		else
 			return "\"" .expand('%:p:h') ."/" .expand('%:r') ."\""
 		endif
 	elseif extension == "java"
 		if g:executable_path != ""
-			return "\"" .g:executable_path .expand('%:r') .".\""
+			return "\"" .g:executable_path .expand('%:r') ."\""
 		else
 			return "java " .expand('%:r')
 		endif
