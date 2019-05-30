@@ -84,7 +84,11 @@ function! CompileFile(file_name)
 			let b:compiler_message = system("g++ -std=c++11 -D_DEBUG " .a:file_name ." -o " .g:executable_path .expand("%:r"))
 		endif
 	elseif expand('%:e') == "java"
-		let b:compiler_message = system("javac " .a:file_name)
+		if g:executable_path == ""
+			let b:compiler_message = system("javac " .a:file_name)
+		else
+			let b:compiler_message = system("javac " .a:file_name ." -d " .g:executable_path)
+		endif
 	endif
 endfunction
 
@@ -111,25 +115,32 @@ function! WriteSourceFileWithTimer(file_name, withTc)
 	let par_count = 0
 	while i < len(source_code)
 		"For CPP
-		if match(source_code[i], "return 0;") != -1
-			call insert(source_code, GetTimeEnder(a:withTc), i)
-			break
+		if expand("%:e") == "cpp"
+			if match(source_code[i], "return 0;") != -1
+				let last_line = i
+			endif
 		endif
 
 		"For Java
-		if match(source_code[i], "{") != -1
-			let par_count += 1
-		endif
-		if match(source_code[i], "}") != -1
-			if par_count > 0
-				let par_count -= 1
-			else
-				call insert(source_code, GetTimeEnder(a:withTc), i)
-				break
+		if expand("%:e") == "java"
+			if match(source_code[i], "{") != -1
+				let par_count += 1
+			endif
+			if match(source_code[i], "}") != -1
+				if par_count > 0
+					let par_count -= 1
+				else
+					let last_line = i
+					break
+				endif
 			endif
 		endif
+
 		let i += 1
 	endwhile
+
+	call insert(source_code, GetTimeEnder(a:withTc), last_line)
+
 	"Compile source_code list
 	call writefile(source_code, expand("%"))
 endfunction
@@ -144,9 +155,7 @@ endf
 
 function! GetTimeEnder(withTc)
 	if expand('%:e') == "java"
-		if (a:withTc)
-			return 'System.out.printf("\n%d' .(a:withTc ? '' : 'ms\n') .'", (System.nanoTime() - startTime) / 1000000);'
-		endif
+		return 'System.out.printf("\n%d' .(a:withTc ? '' : 'ms\n') .'", (System.nanoTime() - startTime) / 1000000);'
 	elseif expand('%:e') == "cpp"
 		return 'printf("\n%lld' .(a:withTc ? '' : 'ms\n') .'", clock() - t_start);'
 	endif
@@ -187,7 +196,7 @@ function! GetRunCommand()
 		endif
 	elseif extension == "java"
 		if g:executable_path != ""
-			return "\"" .g:executable_path .expand('%:r') ."\""
+			return "java " ."-cp \"" .g:executable_path ."\" " .expand('%:r')
 		else
 			return "java " .expand('%:r')
 		endif
