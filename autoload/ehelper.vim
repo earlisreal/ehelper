@@ -1,6 +1,7 @@
 "TODO: function to move cursor/highlight wrong test case
 "TODO: try async functions - For compiling
 "TODO: put extension based function to files
+"TODO: Bug on second time you run CompileRunTestCases() - it runs normally instead of Feeding test cases
 
 "Important Initializations
 
@@ -93,7 +94,7 @@ function! CompileFile(file_name)
 endfunction
 
 function! WriteSourceFileWithTimer(file_name, withTc)
-	let source_code = readfile(a:file_name)
+	let source_code = readfile(expand("%"))
 	" Include ctime to use the cloc() in c++
 	if expand("%:e") == "cpp"
 		call insert(source_code, "#include <ctime>", 0)
@@ -142,14 +143,14 @@ function! WriteSourceFileWithTimer(file_name, withTc)
 	call insert(source_code, GetTimeEnder(a:withTc), last_line)
 
 	"Compile source_code list
-	call writefile(source_code, expand("%"))
+	call writefile(source_code, a:file_name)
 endfunction
 
 function! GetTimeStarter()
 	if expand('%:e') == "java"
 		return 'long startTime = System.nanoTime();'
 	elseif expand('%:e') == "cpp"
-		return 'int t_start = (int) clock();'
+		return 'chrono::milliseconds t_start = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch());'
 	endif
 endf
 
@@ -157,7 +158,7 @@ function! GetTimeEnder(withTc)
 	if expand('%:e') == "java"
 		return 'System.out.printf("\n%d' .(a:withTc ? '' : 'ms\n') .'", (System.nanoTime() - startTime) / 1000000);'
 	elseif expand('%:e') == "cpp"
-		return 'printf("\n%lld' .(a:withTc ? '' : 'ms\n') .'", clock() - t_start);'
+		return 'cout << "\n" << ' .'chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count() - t_start.count()' .(a:withTc ? '' : ' << "ms\n"') .' << endl;'
 	endif
 endf
 
@@ -421,17 +422,14 @@ function! CleanCompile(withTc)
 	let file_name = expand("%")
 	let temp_file = "Temp_" .expand("%")
 
-	" Store the original file to temp file
-	call rename(file_name, temp_file)
-
 	" Write new Source Code with timer to the temp file
 	call WriteSourceFileWithTimer(temp_file, a:withTc)
 
 	" Compile the file with timer
-	call CompileFile(file_name)
+	call CompileFile(temp_file)
 
-	" Rename the Original file to its original name, this will overwrite the temp file
-	call rename(temp_file, file_name)
+	" Remove the temp
+	call delete(temp_file)
 endfunction
 
 function! Strip(str)
