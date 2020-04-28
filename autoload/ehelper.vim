@@ -1,4 +1,3 @@
-"TODO: function to move cursor/highlight wrong test case
 "TODO: try async functions - For compiling
 "TODO: put extension based function to files
 "TODO: Bug on second time you run CompileRunTestCases() - it runs normally instead of Feeding test cases
@@ -297,11 +296,15 @@ function! RunTestCase()
 	let s:is_input = 1
 
 	let success = ehelper#Run(join(s:input_arr, "\n"))
-	let output .= "Program Output:\n" .s:program_output ."\n"
-	if !success
-		let output = "Program Output:\n[Runtime Error]\n"
+	if success
+		let result = CompareOutput() ? "Correct" : "Wrong"
+		let out = s:program_output
+	else
+		let out = "[Runtime Error]"
+			let result = "Runtime Error"
 		let s:execution_time = -1
 	endif
+	let output .= "Program Output:\n" .out ."\n"
 
 	" Check for run TLE if time > 5ms
 	if g:allow_time_limit && s:execution_time > 5000
@@ -318,11 +321,6 @@ function! RunTestCase()
 			let answer .= join(s:answer_arr, "\n") ."\n"
 		endif
 
-		if s:execution_time != -1
-			let result = CompareOutput() ? "Correct" : "Wrong"
-		else
-			let result = "Runtime Error"
-		endif
 		let message .= ", verdict: " .result
 		let s:verdict_message .= "Test Case " .s:test_case_no .": "
 		let s:verdict_message .= result ."\n"
@@ -341,24 +339,25 @@ function! CompareOutput()
 	let program_output = s:program_output_list
 	"May also be "!="
 	if len(s:answer_arr) > len(program_output)
-		echo s:answer_arr
-		echo program_output
 		echo "Length not matched"
 		return 0
 	endif
 
+	let pass = 1
 	let i = 0
 	while i < len(s:answer_arr)
 		if Strip(s:answer_arr[i]) != "earl-skip-earl"
 			if Strip(s:answer_arr[i]) != Strip(program_output[i])
 				echo "Line not matched"
-				return 0
+				let s:program_output_list[i] .= " <- Incorrect"
+				let pass = 0
 			endif
 		endif
 		let i += 1
 	endwhile
+	let s:program_output = join(s:program_output_list, "\n")
 	let s:correct_test_case += 1
-	return 1
+	return pass
 endfunction
 
 function! LimitList(original_list, limit)
