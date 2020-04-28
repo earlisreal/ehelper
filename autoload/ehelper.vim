@@ -300,7 +300,7 @@ function! RunTestCase()
 	let output .= "Program Output:\n" .s:program_output ."\n"
 	if !success
 		let output = "Program Output:\n[Runtime Error]\n"
-		let s:execution_time = "-1"
+		let s:execution_time = -1
 	endif
 
 	" Check for run TLE if time > 5ms
@@ -318,10 +318,14 @@ function! RunTestCase()
 			let answer .= join(s:answer_arr, "\n") ."\n"
 		endif
 
-		let correct = CompareOutput()
-		let message .= ", verdict: " .(correct ? "Correct" : "Wrong")
+		if s:execution_time != -1
+			let result = CompareOutput() ? "Correct" : "Wrong"
+		else
+			let result = "Runtime Error"
+		endif
+		let message .= ", verdict: " .result
 		let s:verdict_message .= "Test Case " .s:test_case_no .": "
-		let s:verdict_message .= (correct ? "Correct" : "Wrong") ."\n"
+		let s:verdict_message .= result ."\n"
 	endif
 	let message .= "]"
 
