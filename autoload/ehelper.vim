@@ -297,11 +297,12 @@ function! RunTestCase()
 
 	let success = ehelper#Run(join(s:input_arr, "\n"))
 	if success
+		call filter(s:answer_arr, "v:val != ''")
 		let result = CompareOutput() ? "Correct" : "Wrong"
 		let out = s:program_output
 	else
 		let out = "[Runtime Error]"
-			let result = "Runtime Error"
+		let result = "Runtime Error"
 		let s:execution_time = -1
 	endif
 	let output .= "Program Output:\n" .out ."\n"
@@ -313,7 +314,6 @@ function! RunTestCase()
 
 	let message .= "[Test Case " .s:test_case_no
 	"Trim Answer
-	call filter(s:answer_arr, "v:val != ''")
 	let message .= ", time: " .s:execution_time ." ms"
 	if !empty(s:answer_arr)
 		if g:ehelper_print_expected_output
@@ -337,15 +337,18 @@ endfunction
 "Compare expected output and program output
 function! CompareOutput()
 	let program_output = s:program_output_list
-	"May also be "!="
-	if len(s:answer_arr) > len(program_output)
-		echo "Length not matched"
-		return 0
-	endif
+	let alen = len(s:answer_arr)
+	let blen = len(program_output)
 
 	let pass = 1
+	if alen > blen
+		echo "Length not matched"
+		let pass = 0
+	endif
+
+	let size = alen < blen ? alen : blen
 	let i = 0
-	while i < len(s:answer_arr)
+	while i < size
 		if Strip(s:answer_arr[i]) != "earl-skip-earl"
 			if Strip(s:answer_arr[i]) != Strip(program_output[i])
 				echo "Line not matched"
@@ -357,6 +360,7 @@ function! CompareOutput()
 	endwhile
 	let s:program_output = join(s:program_output_list, "\n")
 	let s:correct_test_case += 1
+
 	return pass
 endfunction
 
