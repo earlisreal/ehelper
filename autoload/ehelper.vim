@@ -1,7 +1,3 @@
-"TODO: try async functions - For compiling
-"TODO: put extension based function to files
-"TODO: Bug on second time you run CompileRunTestCases() - it runs normally instead of Feeding test cases
-
 "Important Initializations
 
 if !exists("t:output_window_open")
