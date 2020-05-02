@@ -108,12 +108,14 @@ function! WriteSourceFileWithTimer(file_name, withTc)
 		let i += 1
 	endwhile
 
+	let end_lines = []
+
 	let par_count = 0
 	while i < len(source_code)
 		"For CPP
 		if expand("%:e") == "cpp"
 			if match(source_code[i], "return 0;") != -1
-				let last_line = i
+				call add(end_lines, i)
 			endif
 		endif
 
@@ -126,7 +128,7 @@ function! WriteSourceFileWithTimer(file_name, withTc)
 				if par_count > 0
 					let par_count -= 1
 				else
-					let last_line = i
+					call add(end_lines, i)
 					break
 				endif
 			endif
@@ -135,7 +137,12 @@ function! WriteSourceFileWithTimer(file_name, withTc)
 		let i += 1
 	endwhile
 
-	call insert(source_code, GetTimeEnder(a:withTc), last_line)
+	" Add time Ender for all Exit calls
+	let i = len(end_lines) - 1
+	while i >= 0
+		call insert(source_code, GetTimeEnder(a:withTc), end_lines[i])
+		let i -= 1
+	endwhile
 
 	"Compile source_code list
 	call writefile(source_code, a:file_name)
