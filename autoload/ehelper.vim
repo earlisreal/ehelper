@@ -392,7 +392,11 @@ function! OpenOutputWindow()
 endfunction
 
 function! FocusOutputWindow()
-	let nr = bufwinnr("output_scratch")
+	return FocusWindow("output_scratch")
+endfunction
+
+function! FocusWindow(window)
+	let nr = bufwinnr(a:window)
 	if nr != -1
 		execute nr . "wincmd w"
 		return 1
@@ -445,3 +449,28 @@ endfunction
 function! Strip(str)
     return substitute(a:str, '^\s*\(.\{-}\)\s*$', '\1', '')
 endfunction
+
+function! ehelper#ToggleTestsWindow()
+	if FocusTestsWindow()
+		call CloseTestsWindow()
+	else
+		call OpenTestsWindow()
+	endif
+endfunction
+
+function! OpenTestsWindow()
+	if !FocusTestsWindow()
+		vertical new tests
+	endif
+endfunction
+
+function! CloseTestsWindow()
+	if FocusTestsWindow()
+		hide
+	endif
+endfunction
+
+function! FocusTestsWindow()
+	return FocusWindow("tests")
+endfunction
+
