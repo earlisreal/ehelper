@@ -25,10 +25,6 @@ if !exists("g:allow_time_limit")
 	let g:allow_time_limit = 0
 endif
 
-if !exists("g:executable_path")
-	let g:executable_path = ""
-endif
-
 if !exists("g:enable_wsl")
 	let g:enable_wsl = 0
 endif
@@ -77,11 +73,10 @@ endfunction
 
 "Compile File
 function! CompileFile(file_name) 
-	let path = g:executable_path == "" ? "./" : g:executable_path
 	if expand('%:e') == "cpp"
-		let b:compiler_message = Execute("g++ -std=c++11 -D_DEBUG " .a:file_name ." -o " .path .expand("%:r"))
+		let b:compiler_message = Execute("g++ -std=c++11 -D_DEBUG " .a:file_name ." -o " .expand("%:r"))
 	elseif expand('%:e') == "java"
-		let b:compiler_message = Execute("javac " .a:file_name ." -d " .path)
+		let b:compiler_message = Execute("javac " .a:file_name)
 	endif
 endfunction
 
@@ -165,7 +160,11 @@ function! ehelper#Run(...)
 	endif
 	let run_command = GetRunCommand()
 	if a:0 == 0
-		execute "!" .run_command
+		if g:enable_wsl
+			execute "!wsl " .run_command
+		else
+			execute "!" .run_command
+		endif
 	else
 		let s:program_output = Execute(run_command, a:1)
 
@@ -186,27 +185,18 @@ function! Execute(command, ...)
 	if g:enable_wsl
 		return system("wsl " .a:command, join(a:000, ","))
 	endif
-	return system(a:command, a:000)
+	return system(a:command, join(a:000, ","))
 endfunction
 
 function! GetRunCommand()
 	let extension = expand('%:e')
 	if extension == "cpp"
-		if g:executable_path != ""
-			let command = "\"" .g:executable_path .expand('%:r') ."\""
-		else
-			let command = "\"" .expand('%:p:h') ."/" .expand('%:r') ."\""
-		endif
 		if g:enable_wsl
-			return "\"" .substitute(system("wsl wslpath -a " .command), "\n", "", "") ."\""
+			return "./" .expand('%:r')
 		endif
-		return command
+		return "\"" .expand('%:p:h') ."/" .expand('%:r') ."\""
 	elseif extension == "java"
-		if g:executable_path != ""
-			return "java " ."-cp \"" .g:executable_path ."\" " .expand('%:r')
-		else
-			return "java " .expand('%:r')
-		endif
+		return "java " .expand('%:r')
 	endif
 endfunction
 
