@@ -29,6 +29,10 @@ if !exists("g:executable_path")
 	let g:executable_path = ""
 endif
 
+if !exists("g:enable_wsl")
+	let g:enable_wsl = 0
+endif
+
 function! GotoWindow(nr)
 	execute a:nr . "wincmd w"
 endfunction
@@ -73,27 +77,16 @@ endfunction
 
 "Compile File
 function! CompileFile(file_name) 
+	let path = g:executable_path == "" ? "./" : g:executable_path
 	if expand('%:e') == "cpp"
-		if g:executable_path == ""
-			let b:compiler_message = system("g++ -std=c++11 -D_DEBUG " .a:file_name ." -o " .expand("%:r"))
-		else
-			let b:compiler_message = system("g++ -std=c++11 -D_DEBUG " .a:file_name ." -o " .g:executable_path .expand("%:r"))
-		endif
+		let b:compiler_message = Execute("g++ -std=c++11 -D_DEBUG " .a:file_name ." -o " .path .expand("%:r"))
 	elseif expand('%:e') == "java"
-		if g:executable_path == ""
-			let b:compiler_message = system("javac " .a:file_name)
-		else
-			let b:compiler_message = system("javac " .a:file_name ." -d " .g:executable_path)
-		endif
+		let b:compiler_message = Execute("javac " .a:file_name ." -d " .path)
 	endif
 endfunction
 
 function! WriteSourceFileWithTimer(file_name, withTc)
 	let source_code = readfile(expand("%"))
-	" Include ctime to use the cloc() in c++
-	if expand("%:e") == "cpp"
-		call insert(source_code, "#include <ctime>", 0)
-	endif
 	let i = 0
 	while i < len(source_code)
 		if source_code[i] =~ "main("
@@ -174,7 +167,7 @@ function! ehelper#Run(...)
 	if a:0 == 0
 		execute "!" .run_command
 	else
-		let s:program_output = system(run_command, a:1)
+		let s:program_output = Execute(run_command, a:1)
 
 		if v:shell_error == 0
 			let s:program_output_list = split(s:program_output, "\n")
@@ -189,14 +182,25 @@ function! ehelper#Run(...)
 	return v:shell_error == 0
 endfunction
 
+function! Execute(command, ...)
+	if g:enable_wsl
+		return system("wsl " .a:command, join(a:000, ","))
+	endif
+	return system(a:command, a:000)
+endfunction
+
 function! GetRunCommand()
 	let extension = expand('%:e')
 	if extension == "cpp"
 		if g:executable_path != ""
-			return "\"" .g:executable_path .expand('%:r') ."\""
+			let command = "\"" .g:executable_path .expand('%:r') ."\""
 		else
-			return "\"" .expand('%:p:h') ."/" .expand('%:r') ."\""
+			let command = "\"" .expand('%:p:h') ."/" .expand('%:r') ."\""
 		endif
+		if g:enable_wsl
+			return "\"" .substitute(system("wsl wslpath -a " .command), "\n", "", "") ."\""
+		endif
+		return command
 	elseif extension == "java"
 		if g:executable_path != ""
 			return "java " ."-cp \"" .g:executable_path ."\" " .expand('%:r')
