@@ -84,6 +84,10 @@ function! WriteSourceFileWithTimer(file_name, withTc)
 	let source_code = readfile(expand("%"))
 	let i = 0
 	while i < len(source_code)
+		if source_code[i] =~ "public class " .expand("%:r")
+			" Remove the public keyword to save source code in different file name
+			let source_code[i] = substitute(source_code[i], "public ", "", "")
+		endif
 		if source_code[i] =~ "main("
 			"Append timer
 			while i < len(source_code) && match(source_code[i], "{") == -1
@@ -119,6 +123,9 @@ function! WriteSourceFileWithTimer(file_name, withTc)
 					call add(end_lines, i)
 					break
 				endif
+			endif
+			if source_code[i] =~ "System.exit("
+				call add(end_lines, i)
 			endif
 		endif
 
