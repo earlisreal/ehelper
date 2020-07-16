@@ -78,7 +78,7 @@ endfunction
 "Compile File
 function! CompileFile(file_name) 
 	if expand('%:e') == "cpp"
-		let b:compiler_message = Execute("g++ -std=c++11 -D_DEBUG " .a:file_name ." -o " .expand("%:r"))
+		let b:compiler_message = Execute("g++ -std=c++11 -D_DEBUG " .a:file_name ." -o " .expand("%:r") .".exe")
 	elseif expand('%:e') == "java"
 		let b:compiler_message = Execute("javac " .a:file_name)
 	endif
@@ -203,9 +203,9 @@ function! GetRunCommand()
 	let extension = expand('%:e')
 	if extension == "cpp"
 		if g:enable_wsl
-			return "./" .expand('%:r')
+			return "./" .expand('%:r') .".exe"
 		endif
-		return "\"" .expand('%:p:h') ."/" .expand('%:r') ."\""
+		return "\"" .expand('%:p:h') ."/" .expand('%:r') .".exe" ."\""
 	elseif extension == "java"
 		return "java " .expand('%:r')
 	endif
