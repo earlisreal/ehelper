@@ -29,6 +29,10 @@ if !exists("g:enable_wsl")
 	let g:enable_wsl = 0
 endif
 
+if !exists("g:output_window_size")
+	let g:output_window_size = 8
+endif
+
 function! GotoWindow(nr)
 	execute a:nr . "wincmd w"
 endfunction
@@ -387,7 +391,7 @@ function! OpenOutputWindow()
 	if !FocusOutputWindow()
 		"Make Scratch Buffer for output
 		botright new output_scratch
-		resize 8
+		exe 'resize' g:output_window_size
 		setlocal buftype=nofile bufhidden=hide noswapfile buftype=nowrite
 	endif
 endfunction
